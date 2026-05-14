@@ -78,7 +78,7 @@ async def init_admin():
 
 def print_admin_info():
     print("\n" + "=" * 50)
-    print("蓝鲸毕业照合集 已启动")
+    print("图灵鲸 已启动")
     print(f"访问地址: http://localhost:{PORT}")
     print("=" * 50 + "\n")
 

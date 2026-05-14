@@ -106,7 +106,7 @@ cd imagewhale
 # 安装依赖
 pip install -r requirements.txt
 
-# 首次运行（控制台会显示管理员密码）
+# 首次运行（自动创建数据目录，控制台显示管理员密码）
 python main.py
 ```
 
@@ -121,17 +121,14 @@ cd imagewhale
 python3 -m venv venv
 source venv/bin/activate
 
-# 安装系统依赖（face_recognition 需要 dlib）
+# 安装系统依赖（dlib 编译需要，仅 Linux/macOS）
 sudo apt-get install -y build-essential cmake libopenblas-dev liblapack-dev
 sudo apt-get install -y libx11-dev libgtk-3-dev
 
 # 安装 Python 依赖
 pip install -r requirements.txt
 
-# 创建必要目录
-mkdir -p uploads thumbnails data faces_db
-
-# 首次运行
+# 首次运行（自动创建 uploads、thumbnails、data、faces_db 目录，并显示管理员密码）
 python main.py
 ```
 

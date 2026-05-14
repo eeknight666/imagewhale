@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蓝鲸毕业照合集</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐳</text></svg>">
+</head>
+<body>
+    <div id="app">
+        <div v-if="!auth.token" class="login-container">
+            <div class="login-box">
+                <div class="login-header">
+                    <div class="login-logo">🐳</div>
+                    <h1 class="login-title">蓝鲸毕业照合集</h1>
+                    <p class="login-subtitle">记录美好瞬间</p>
+                </div>
+
+                <div class="login-tabs">
+                    <button class="login-tab" :class="{active: loginType === 'user'}" @click="loginType = 'user'">用户登录</button>
+                    <button class="login-tab" :class="{active: loginType === 'admin'}" @click="loginType = 'admin'">管理员</button>
+                </div>
+
+                <form v-if="loginType === 'user'" @submit.prevent="userLogin">
+                    <div class="form-group">
+                        <label class="form-label">项目ID</label>
+                        <input type="text" class="form-input" v-model="loginForm.project_uuid" placeholder="请输入项目UUID" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">用户名</label>
+                        <input type="text" class="form-input" v-model="loginForm.username" placeholder="请输入用户名" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">密码</label>
+                        <input type="password" class="form-input" v-model="loginForm.password" placeholder="请输入密码" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg" style="width: 100%">登录</button>
+                </form>
+
+                <form v-else @submit.prevent="adminLogin">
+                    <div class="form-group">
+                        <label class="form-label">管理员账号</label>
+                        <input type="text" class="form-input" v-model="loginForm.username" placeholder="请输入管理员账号" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">密码</label>
+                        <input type="password" class="form-input" v-model="loginForm.password" placeholder="请输入密码" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg" style="width: 100%">登录</button>
+                </form>
+            </div>
+        </div>
+
+        <div v-else class="app-container">
+            <div class="sidebar-overlay" :class="{show: sidebarOpen}" @click="sidebarOpen = false"></div>
+            <aside class="sidebar" :class="{open: sidebarOpen}">
+                <div class="sidebar-header">
+                    <div class="sidebar-logo">
+                        <span class="emoji">🐳</span>
+                        <span>蓝鲸毕业照合集</span>
+                    </div>
+                </div>
+                <ul class="sidebar-nav">
+                    <li v-if="auth.user_type === 'admin'">
+                        <a href="#" :class="{active: currentPage === 'admin-projects'}" @click.prevent="navigateTo('admin-projects')">
+                            <span class="icon">📁</span> 项目管理
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" :class="{active: currentPage === 'projects'}" @click.prevent="navigateTo('projects')">
+                            <span class="icon">🖼️</span> 项目浏览
+                        </a>
+                    </li>
+                    <li v-if="auth.user_type === 'admin'">
+                        <a href="#" :class="{active: currentPage === 'face-manage'}" @click.prevent="navigateTo('face-manage')">
+                            <span class="icon">👤</span> 人脸管理
+                        </a>
+                    </li>
+                </ul>
+            </aside>
+
+            <main class="main-content">
+                <header class="top-bar">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <button class="hamburger" @click="sidebarOpen = !sidebarOpen">☰</button>
+                        <h2 class="top-bar-title">{{ pageTitle }}</h2>
+                    </div>
+                    <div class="user-info">
+                        <span>{{ auth.username }}</span>
+                        <div class="user-avatar">{{ auth.username[0].toUpperCase() }}</div>
+                        <button class="btn btn-outline btn-sm" @click="logout">退出</button>
+                    </div>
+                </header>
+
+                <div class="content-area">
+                    <!-- Admin Projects Page -->
+                    <div v-if="currentPage === 'admin-projects'">
+                        <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                            <h3>项目列表</h3>
+                            <button class="btn btn-primary" @click="showCreateProject = true">创建项目</button>
+                        </div>
+
+                        <div class="project-grid">
+                            <div v-for="project in projects" :key="project.uuid" class="project-card" @click="selectProject(project)">
+                                <div class="project-name">{{ project.name }}</div>
+                                <div class="project-uuid">{{ project.uuid }}</div>
+                                <div class="project-stats">
+                                    <span class="project-stat">👤 {{ project.user_count }} 用户</span>
+                                    <span class="project-stat">🖼️ {{ project.image_count }} 图片</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="projects.length === 0" class="empty-state">
+                            <div class="empty-icon">📁</div>
+                            <div class="empty-text">暂无项目</div>
+                            <div class="empty-hint">点击"创建项目"开始使用</div>
+                        </div>
+                    </div>
+
+                    <!-- Project Detail (Admin) -->
+                    <div v-if="currentPage === 'project-detail'">
+                        <div style="margin-bottom: 20px;">
+                            <button class="btn btn-outline" @click="navigateTo('admin-projects')">← 返回</button>
+                        </div>
+
+                        <div class="card" style="margin-bottom: 20px;">
+                            <div class="card-header">
+                                <div>
+                                    <h3>{{ selectedProject.name }}</h3>
+                                    <div class="project-uuid" style="margin-top: 4px;">{{ selectedProject.uuid }}</div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-secondary" @click="copyUuid">复制项目ID</button>
+                                    <button class="btn btn-danger" @click="deleteProject">删除项目</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div style="display: flex; gap: 24px;">
+                                    <div>用户数: {{ selectedProject.user_count }}</div>
+                                    <div>图片数: {{ selectedProject.image_count }}</div>
+                                    <div>已用空间: {{ formatSize(selectedProject.storage_used) }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="margin-bottom: 20px;">
+                            <div class="card-header">
+                                <h3>用户管理</h3>
+                                <button class="btn btn-primary btn-sm" @click="showCreateUser = true">添加用户</button>
+                            </div>
+                            <div class="card-body" style="padding: 0;">
+                                <table class="user-table">
+                                    <thead>
+                                        <tr>
+                                            <th>用户名</th>
+                                            <th>密码</th>
+                                            <th>创建时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="user in projectUsers" :key="user.id">
+                                            <td>{{ user.username }}</td>
+                                            <td><code>{{ user.plain_password }}</code></td>
+                                            <td>{{ formatDate(user.created_at) }}</td>
+                                            <td>
+                                                <button class="btn btn-outline btn-sm" @click="showChangePassword(user)">修改密码</button>
+                                                <button class="btn btn-danger btn-sm" @click="deleteUser(user)">删除</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <div v-if="projectUsers.length === 0" class="empty-state" style="padding: 30px;">
+                                    <div class="empty-text">暂无用户</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>图片管理</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="upload-zone" @click="triggerUpload" @drop.prevent="handleDrop" @dragover.prevent="$event.target.classList.add('dragover')" @dragleave="$event.target.classList.remove('dragover')">
+                                    <div class="upload-icon">📤</div>
+                                    <div class="upload-text">点击或拖拽图片到此处上传</div>
+                                    <div class="upload-hint">支持 JPG、PNG、GIF、WebP、BMP，单张最大200MB</div>
+                                    <input type="file" ref="fileInput" style="display: none" multiple accept="image/*" @change="handleFileSelect">
+                                </div>
+                                <div v-if="uploading" class="upload-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" :style="{width: uploadProgress + '%'}"></div>
+                                    </div>
+                                    <div style="text-align: center; margin-top: 8px; font-size: 14px;">上传中 {{ uploadProgress }}%</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="margin-top: 20px;">
+                            <div class="card-header">
+                                <h3>图片列表</h3>
+                                <div v-if="selectedImages.length > 0" style="display: flex; gap: 8px;">
+                                    <button class="btn btn-secondary btn-sm" @click="batchDownload">批量下载 ({{ selectedImages.length }})</button>
+                                    <button class="btn btn-danger btn-sm" @click="batchDelete">批量删除 ({{ selectedImages.length }})</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div v-if="selectedImages.length > 0 && !projectFaceSearchName" class="batch-bar">
+                                    <span>已选择 {{ selectedImages.length }} 张图片</span>
+                                    <button class="btn btn-outline btn-sm" @click="selectedImages = []" style="color: #fff; border-color: #fff;">取消选择</button>
+                                </div>
+
+                                <!-- Filter Bar -->
+                                <div class="filter-bar">
+                                    <button class="btn btn-sm" :class="sortOrder === 'desc' ? 'btn-primary' : 'btn-outline'" @click="sortOrder = 'desc'" title="最新在前">时间倒序</button>
+                                    <button class="btn btn-sm" :class="sortOrder === 'asc' ? 'btn-primary' : 'btn-outline'" @click="sortOrder = 'asc'" title="最早在前">时间正序</button>
+                                    <select v-if="uploaders.length > 0" v-model="filterUploader" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; background: var(--bg-card); color: var(--text);">
+                                        <option value="">全部上传者</option>
+                                        <option v-for="name in uploaders" :key="name" :value="name">{{ name }}</option>
+                                    </select>
+                                    <button v-if="projectFaceSearchName" class="btn btn-danger btn-sm" @click="clearProjectFaceSearch">清除人脸检索: {{ projectFaceSearchName }}</button>
+                                </div>
+
+                                <!-- Face Search Avatars -->
+                                <div v-if="projectRegisteredFaces.length > 0" style="margin-bottom: 16px;">
+                                    <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                                        <div v-for="name in projectRegisteredFaces" :key="name"
+                                             class="face-avatar-item"
+                                             :class="{active: projectFaceSearchName === name}"
+                                             @click="searchProjectFace(name)"
+                                             style="display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; padding: 8px; border-radius: 8px; border: 2px solid var(--border); transition: all 0.2s; min-width: 60px;">
+                                            <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold;">
+                                                {{ name[0].toUpperCase() }}
+                                            </div>
+                                            <span style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">{{ name }}</span>
+                                        </div>
+                                    </div>
+                                    <div v-if="projectFaceSearching" style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                                        正在检索人脸，请稍候...
+                                    </div>
+                                </div>
+
+                                <!-- Face Search Results -->
+                                <div v-if="projectFaceSearchResults.length > 0" style="margin-bottom: 16px;">
+                                    <h4 style="margin: 0 0 12px 0; color: var(--text);">
+                                        检索结果: {{ projectFaceSearchName }}
+                                        <span style="font-size: 14px; color: var(--text-secondary); font-weight: normal;">({{ projectFaceSearchResults.length }} 张匹配)</span>
+                                    </h4>
+                                    <div class="image-grid">
+                                        <div v-for="result in projectFaceSearchResults" :key="result.image_id" class="image-card">
+                                            <img :src="'/api/thumbnails/' + result.thumbnail_path" class="image-preview" :alt="result.filename">
+                                            <div class="image-info">
+                                                <div class="image-name">{{ result.matched_name }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="!projectFaceSearchName" class="image-grid">
+                                    <div v-for="image in filteredImages" :key="image.id" class="image-card">
+                                        <img :src="'/api/thumbnails/' + image.thumbnail_path" class="image-preview" @click="viewImage(image)" :alt="image.original_name">
+                                        <div class="image-info">
+                                            <div class="image-name" :title="image.original_name">{{ image.original_name }}</div>
+                                            <div class="image-meta">
+                                                <span>{{ image.uploader_name }}</span>
+                                                <span>{{ formatSize(image.file_size) }}</span>
+                                            </div>
+                                            <div class="image-meta" style="margin-top: 2px;">
+                                                <span>{{ formatDate(image.created_at) }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="image-actions">
+                                            <label class="checkbox-label">
+                                                <input type="checkbox" :value="image.id" v-model="selectedImages">
+                                            </label>
+                                            <button class="btn btn-outline btn-sm" @click="downloadImage(image)">下载</button>
+                                            <button class="btn btn-danger btn-sm" @click="deleteImage(image)">删除</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="filteredImages.length === 0 && !projectFaceSearchName" class="empty-state">
+                                    <div class="empty-icon">🖼️</div>
+                                    <div class="empty-text">暂无图片</div>
+                                    <div class="empty-hint">上传第一张图片吧</div>
+                                </div>
+
+                                <div v-if="!projectFaceSearchName" class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; flex-wrap: wrap; gap: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 13px; color: var(--text-secondary);">每页显示</span>
+                                        <button v-for="s in [10, 20, 50]" :key="s" class="btn btn-sm" :class="pageSize === s ? 'btn-primary' : 'btn-outline'" @click="changePageSize(s)">{{ s }}</button>
+                                    </div>
+                                    <div v-if="imagePagination.total_pages > 1" class="pagination" style="margin-top: 0;">
+                                        <button @click="loadImages(imagePagination.page - 1)" :disabled="imagePagination.page <= 1">上一页</button>
+                                        <button v-for="p in imagePagination.total_pages" :key="p" :class="{active: p === imagePagination.page}" @click="loadImages(p)">{{ p }}</button>
+                                        <button @click="loadImages(imagePagination.page + 1)" :disabled="imagePagination.page >= imagePagination.total_pages">下一页</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Projects Page (User) -->
+                    <div v-if="currentPage === 'projects'">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>{{ auth.project_uuid ? '项目图片' : '项目列表' }}</h3>
+                            </div>
+                            <div class="card-body">
+                                <div v-if="auth.user_type === 'admin' && !auth.project_uuid">
+                                    <div class="project-grid">
+                                        <div v-for="project in projects" :key="project.uuid" class="project-card" @click="enterProject(project)">
+                                            <div class="project-name">{{ project.name }}</div>
+                                            <div class="project-uuid">{{ project.uuid }}</div>
+                                            <div class="project-stats">
+                                                <span class="project-stat">🖼️ {{ project.image_count }} 图片</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-else>
+                                    <div v-if="!projectFaceSearchName" class="upload-zone" @click="triggerUpload" @drop.prevent="handleDrop" @dragover.prevent="$event.target.classList.add('dragover')" @dragleave="$event.target.classList.remove('dragover')">
+                                        <div class="upload-icon">📤</div>
+                                        <div class="upload-text">点击或拖拽图片到此处上传</div>
+                                        <div class="upload-hint">支持 JPG、PNG、GIF、WebP、BMP，单张最大200MB</div>
+                                        <input type="file" ref="fileInput" style="display: none" multiple accept="image/*" @change="handleFileSelect">
+                                    </div>
+                                    <div v-if="uploading" class="upload-progress">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" :style="{width: uploadProgress + '%'}"></div>
+                                        </div>
+                                        <div style="text-align: center; margin-top: 8px; font-size: 14px;">上传中 {{ uploadProgress }}%</div>
+                                    </div>
+
+                                    <div v-if="selectedImages.length > 0 && !projectFaceSearchName" class="batch-bar" style="margin-top: 20px;">
+                                        <span>已选择 {{ selectedImages.length }} 张图片</span>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button class="btn btn-secondary btn-sm" @click="batchDownload">批量下载</button>
+                                            <button class="btn btn-outline btn-sm" @click="selectedImages = []" style="color: #fff; border-color: #fff;">取消选择</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Filter Bar -->
+                                    <div class="filter-bar" style="margin-top: 20px;">
+                                        <button class="btn btn-sm" :class="sortOrder === 'desc' ? 'btn-primary' : 'btn-outline'" @click="sortOrder = 'desc'" title="最新在前">时间倒序</button>
+                                        <button class="btn btn-sm" :class="sortOrder === 'asc' ? 'btn-primary' : 'btn-outline'" @click="sortOrder = 'asc'" title="最早在前">时间正序</button>
+                                        <select v-if="uploaders.length > 0" v-model="filterUploader" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; background: var(--bg-card); color: var(--text);">
+                                            <option value="">全部上传者</option>
+                                            <option v-for="name in uploaders" :key="name" :value="name">{{ name }}</option>
+                                        </select>
+                                        <button v-if="projectFaceSearchName" class="btn btn-danger btn-sm" @click="clearProjectFaceSearch">清除人脸检索: {{ projectFaceSearchName }}</button>
+                                    </div>
+
+                                    <!-- Face Search Avatars -->
+                                    <div v-if="projectRegisteredFaces.length > 0" style="margin-top: 12px;">
+                                        <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                                            <div v-for="name in projectRegisteredFaces" :key="name"
+                                                 class="face-avatar-item"
+                                                 :class="{active: projectFaceSearchName === name}"
+                                                 @click="searchProjectFace(name)"
+                                                 style="display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; padding: 8px; border-radius: 8px; border: 2px solid var(--border); transition: all 0.2s; min-width: 60px;">
+                                                <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold;">
+                                                    {{ name[0].toUpperCase() }}
+                                                </div>
+                                                <span style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">{{ name }}</span>
+                                            </div>
+                                        </div>
+                                        <div v-if="projectFaceSearching" style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                                            正在检索人脸，请稍候...
+                                        </div>
+                                    </div>
+
+                                    <!-- Face Search Results -->
+                                    <div v-if="projectFaceSearchResults.length > 0" style="margin-top: 16px;">
+                                        <h4 style="margin: 0 0 12px 0; color: var(--text);">
+                                            检索结果: {{ projectFaceSearchName }}
+                                            <span style="font-size: 14px; color: var(--text-secondary); font-weight: normal;">({{ projectFaceSearchResults.length }} 张匹配)</span>
+                                        </h4>
+                                        <div class="image-grid">
+                                            <div v-for="result in projectFaceSearchResults" :key="result.image_id" class="image-card">
+                                                <img :src="'/api/thumbnails/' + result.thumbnail_path" class="image-preview" :alt="result.filename">
+                                                <div class="image-info">
+                                                    <div class="image-name">{{ result.matched_name }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="!projectFaceSearchName" class="image-grid" style="margin-top: 20px;">
+                                        <div v-for="image in filteredImages" :key="image.id" class="image-card">
+                                            <img :src="'/api/thumbnails/' + image.thumbnail_path" class="image-preview" @click="viewImage(image)" :alt="image.original_name">
+                                            <div class="image-info">
+                                                <div class="image-name" :title="image.original_name">{{ image.original_name }}</div>
+                                                <div class="image-meta">
+                                                    <span>{{ image.uploader_name }}</span>
+                                                    <span>{{ formatSize(image.file_size) }}</span>
+                                                </div>
+                                                <div class="image-meta" style="margin-top: 2px;">
+                                                    <span>{{ formatDate(image.created_at) }}</span>
+                                                </div>
+                                            </div>
+                                            <div class="image-actions">
+                                                <label class="checkbox-label">
+                                                    <input type="checkbox" :value="image.id" v-model="selectedImages">
+                                                </label>
+                                                <button class="btn btn-outline btn-sm" @click="downloadImage(image)">下载</button>
+                                                <button v-if="auth.user_type === 'admin' || image.user_id === auth.user_id" class="btn btn-danger btn-sm" @click="deleteImage(image)">删除</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="filteredImages.length === 0 && !projectFaceSearchName" class="empty-state">
+                                        <div class="empty-icon">🖼️</div>
+                                        <div class="empty-text">暂无图片</div>
+                                        <div class="empty-hint">上传第一张图片吧</div>
+                                    </div>
+
+                                    <div v-if="!projectFaceSearchName" class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; flex-wrap: wrap; gap: 8px;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="font-size: 13px; color: var(--text-secondary);">每页显示</span>
+                                            <button v-for="s in [10, 20, 50]" :key="s" class="btn btn-sm" :class="pageSize === s ? 'btn-primary' : 'btn-outline'" @click="changePageSize(s)">{{ s }}</button>
+                                        </div>
+                                        <div v-if="imagePagination.total_pages > 1" class="pagination" style="margin-top: 0;">
+                                            <button @click="loadImages(imagePagination.page - 1)" :disabled="imagePagination.page <= 1">上一页</button>
+                                            <button v-for="p in imagePagination.total_pages" :key="p" :class="{active: p === imagePagination.page}" @click="loadImages(p)">{{ p }}</button>
+                                            <button @click="loadImages(imagePagination.page + 1)" :disabled="imagePagination.page >= imagePagination.total_pages">下一页</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Face Manage Page (Admin) -->
+                    <div v-if="currentPage === 'face-manage'">
+                        <div class="card" style="margin-bottom: 20px;">
+                            <div class="card-header">
+                                <h3>人脸注册</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label class="form-label">姓名</label>
+                                    <input type="text" class="form-input" v-model="faceRegisterName" placeholder="请输入姓名">
+                                </div>
+                                <div class="upload-zone" @click="$refs.faceRegisterInput.click()" style="padding: 20px;">
+                                    <div class="upload-icon">👤</div>
+                                    <div class="upload-text">{{ faceRegistering ? '正在注册人脸，请稍候...' : '点击上传正脸照（可多选）' }}</div>
+                                    <div class="upload-hint">支持 JPG/PNG 格式，可同时上传多张照片提高识别精度</div>
+                                    <input type="file" ref="faceRegisterInput" style="display: none" multiple accept=".jpg,.jpeg,.png" @change="handleFaceRegister">
+                                </div>
+                                <div v-if="faceRegistering" style="text-align: center; margin-top: 12px;">
+                                    <div class="progress-bar" style="margin-bottom: 8px;">
+                                        <div class="progress-fill" style="width: 100%; animation: pulse 1.5s infinite;"></div>
+                                    </div>
+                                    <span style="font-size: 14px; color: var(--text-secondary);">正在处理人脸特征...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>已注册人脸 ({{ registeredFaces.length }})</h3>
+                            </div>
+                            <div class="card-body">
+                                <div v-if="registeredFaces.length === 0" class="empty-state" style="padding: 30px;">
+                                    <div class="empty-text">暂无注册人脸</div>
+                                </div>
+                                <div v-else style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                    <div v-for="name in registeredFaces" :key="name" class="user-tag">
+                                        <span>{{ name }}</span>
+                                        <button class="btn btn-danger btn-sm" @click="deleteFace(name)" style="padding: 2px 8px; font-size: 12px;">x</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+
+        <!-- Create Project Modal -->
+        <div v-if="showCreateProject" class="modal-overlay" @click.self="showCreateProject = false">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">创建项目</h3>
+                    <button class="modal-close" @click="showCreateProject = false">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">项目名称</label>
+                        <input type="text" class="form-input" v-model="newProjectName" placeholder="请输入项目名称">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" @click="showCreateProject = false">取消</button>
+                    <button class="btn btn-primary" @click="createProject">创建</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create User Modal -->
+        <div v-if="showCreateUser" class="modal-overlay" @click.self="showCreateUser = false">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">添加用户</h3>
+                    <button class="modal-close" @click="showCreateUser = false">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">用户名（留空自动生成）</label>
+                        <input type="text" class="form-input" v-model="newUser.username" placeholder="请输入用户名">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">密码（留空自动生成）</label>
+                        <input type="text" class="form-input" v-model="newUser.password" placeholder="请输入密码">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" @click="showCreateUser = false">取消</button>
+                    <button class="btn btn-primary" @click="createUser">创建</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Change Password Modal -->
+        <div v-if="showPasswordModal" class="modal-overlay" @click.self="showPasswordModal = false">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">修改密码</h3>
+                    <button class="modal-close" @click="showPasswordModal = false">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">新密码</label>
+                        <input type="text" class="form-input" v-model="newPassword" placeholder="请输入新密码">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" @click="showPasswordModal = false">取消</button>
+                    <button class="btn btn-primary" @click="changePassword">确认</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Image Viewer -->
+        <div v-if="viewingImage" class="image-viewer" @click="viewingImage = null">
+            <img :src="'/api/images/' + viewingImage.filename" :alt="viewingImage.original_name">
+        </div>
+
+        <!-- Toast Container -->
+        <div class="toast-container">
+            <div v-for="toast in toasts" :key="toast.id" class="toast" :class="toast.type">
+                <span>{{ toast.message }}</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

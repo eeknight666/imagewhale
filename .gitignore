@@ -1,0 +1,10 @@
+.env
+data/
+uploads/
+thumbnails/
+faces_db/
+*.pyc
+__pycache__/
+*.pkl
+admin_password.txt
+.claude/

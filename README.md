@@ -106,7 +106,10 @@ cd imagewhale
 # 安装依赖
 pip install -r requirements.txt
 
-# 首次运行（自动创建数据目录，控制台显示管理员密码）
+# 创建数据目录
+mkdir uploads thumbnails data faces_db
+
+# 首次运行（控制台显示管理员密码）
 python main.py
 ```
 
@@ -128,7 +131,10 @@ sudo apt-get install -y libx11-dev libgtk-3-dev
 # 安装 Python 依赖
 pip install -r requirements.txt
 
-# 首次运行（自动创建 uploads、thumbnails、data、faces_db 目录，并显示管理员密码）
+# 创建数据目录
+mkdir -p uploads thumbnails data faces_db
+
+# 首次运行（控制台显示管理员密码）
 python main.py
 ```
 

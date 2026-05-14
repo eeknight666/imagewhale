@@ -1,4 +1,4 @@
-# 🐳 蓝鲸毕业照合集
+# 🐳 图灵鲸
 
 > 一个支持多项目、多用户的图片共享图床系统，带人脸识别检索功能。
 
@@ -234,7 +234,7 @@ THUMBNAIL_SIZE=300
 ```ini
 # /etc/systemd/system/imagehub.service
 [Unit]
-Description=蓝鲸毕业照合集
+Description=图灵鲸
 After=network.target
 
 [Service]

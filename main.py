@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="蓝鲸毕业照合集",
+    title="图灵鲸",
     description="图床共享系统",
     version="1.0.0",
     lifespan=lifespan

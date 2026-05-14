@@ -77,12 +77,12 @@ imagehub/
 │   ├── css/style.css        # 🎨 全局样式
 │   ├── js/app.js            # 💻 Vue 应用
 │   └── index.html           # 📄 主页面
-├── uploads/                 # 📤 图片上传目录
-├── thumbnails/              # 🖼️ 缩略图目录
-├── faces_db/                # 🧠 人脸特征数据库
+├── uploads/                 # 📤 图片上传目录（自动创建）
+├── thumbnails/              # 🖼️ 缩略图目录（自动创建）
+├── faces_db/                # 🧠 人脸特征数据库（自动创建）
 ├── data/
-│   └── imagehub.db          # 🗄️ SQLite 数据库
-├── .env                     # 🔧 环境变量配置
+│   └── imagehub.db          # 🗄️ SQLite 数据库（自动创建）
+├── .env                     # 🔧 环境变量配置（从 .env.example 复制）
 ├── .gitignore
 └── requirements.txt         # 📦 Python 依赖
 ```
@@ -100,8 +100,8 @@ imagehub/
 
 ```bash
 # 克隆项目
-git clone <项目地址>
-cd imagehub
+git clone https://github.com/eeknight666/imagewhale.git
+cd imagewhale
 
 # 安装依赖
 pip install -r requirements.txt
@@ -114,8 +114,8 @@ python main.py
 
 ```bash
 # 克隆项目
-git clone <项目地址>
-cd imagehub
+git clone https://github.com/eeknight666/imagewhale.git
+cd imagewhale
 
 # 创建虚拟环境
 python3 -m venv venv
